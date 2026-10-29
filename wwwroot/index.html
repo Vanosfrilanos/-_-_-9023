@@ -1,0 +1,372 @@
+﻿
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1">
+    <title>Мини-программа ASP.NET Core</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #edf2f8;
+            color: #202938;
+        }
+
+        header {
+            background: #253c78;
+            color: white;
+            text-align: center;
+            padding: 30px;
+        }
+
+        main {
+            max-width: 900px;
+            margin: 25px auto;
+            padding: 0 15px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 18px;
+            box-shadow: 0 3px 12px #00000012;
+        }
+
+        h2 {
+            margin-top: 0;
+            font-size: 21px;
+        }
+
+        p {
+            color: #66758b;
+        }
+
+        button {
+            background: #3458af;
+            color: white;
+            border: none;
+            padding: 12px 17px;
+            margin: 5px 5px 5px 0;
+            border-radius: 7px;
+            cursor: pointer;
+        }
+
+            button:hover {
+                background: #233e81;
+            }
+
+        input {
+            padding: 11px;
+            border: 1px solid #cbd5e1;
+            border-radius: 7px;
+            max-width: 100%;
+        }
+
+        pre {
+            background: #182438;
+            color: #8cffb2;
+            padding: 20px;
+            border-radius: 9px;
+            white-space: pre-wrap;
+            overflow-wrap: anywhere;
+            max-height: 450px;
+            overflow: auto;
+        }
+
+        #status {
+            color: #3458af;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>Мини-программа ASP.NET Core</h1>
+        <p style="color:white">
+            Учебный проект по основам ASP.NET Core
+        </p>
+    </header>
+
+    <main>
+        <div class="card">
+            <h2>1. HTTP-запрос и ответ</h2>
+
+            <button onclick="sendGet('/request')">
+                Информация о запросе
+            </button>
+
+            <button onclick="sendGet('/response')">
+                Получить ответ
+            </button>
+        </div>
+
+        <div class="card">
+            <h2>2. Отправка формы</h2>
+
+            <form id="nameForm">
+                <input name="name"
+                       placeholder="Введите имя"
+                       required>
+                <button type="submit">Отправить</button>
+            </form>
+        </div>
+
+        <div class="card">
+            <h2>3. Работа с JSON</h2>
+
+            <button onclick="sendGet('/api/student')">
+                Получить JSON
+            </button>
+
+            <button onclick="sendJson()">
+                Отправить JSON
+            </button>
+
+            <button onclick="sendGet('/api/hello/Иван')">
+                Minimal API
+            </button>
+        </div>
+
+        <div class="card">
+            <h2>4. Загрузка и скачивание файлов</h2>
+
+            <form id="uploadForm">
+                <input type="file" name="file" required>
+                <button type="submit">Загрузить файл</button>
+            </form>
+
+            <button onclick="downloadFile()">
+                Скачать файл
+            </button>
+        </div>
+
+        <div class="card">
+            <h2>5. Middleware и ветвление</h2>
+
+            <button onclick="sendGet('/admin')">
+                Map
+            </button>
+
+            <button onclick="sendGet('/special')">
+                MapWhen
+            </button>
+
+            <button onclick="sendGet('/api/student')">
+                UseWhen
+            </button>
+
+            <button onclick="sendGet('/terminal')">
+                Run
+            </button>
+        </div>
+
+        <div class="card">
+            <h2>6. Переадресация</h2>
+
+            <button onclick="testRedirect('/redirect', 302)">
+                Redirect 302
+            </button>
+
+            <button onclick="testRedirect('/redirect-permanent', 301)">
+                Redirect 301
+            </button>
+        </div>
+
+        <div class="card">
+            <h2>7. Окружение приложения</h2>
+
+            <button onclick="sendGet('/environment')">
+                Показать окружение
+            </button>
+        </div>
+
+        <div class="card">
+            <h2>8. Проверка 404</h2>
+
+            <button onclick="sendGet('/unknown')">
+                Проверить 404
+            </button>
+        </div>
+
+        <div class="card" id="resultCard">
+            <h2>Результат работы программы</h2>
+            <div id="status">Ожидание запроса</div>
+            <pre id="result">Выберите действие...</pre>
+        </div>
+    </main>
+
+    <script>
+            const result = document.getElementById("result");
+            const statusBox = document.getElementById("status");
+
+            function showResult(message, status) {
+                result.textContent = message;
+                statusBox.textContent = status;
+
+                document.getElementById("resultCard")
+                    .scrollIntoView({
+                        behavior: "smooth",
+                        block: "nearest"
+                    });
+            }
+
+            async function displayResponse(response) {
+                let text = await response.text();
+
+                try {
+                    text = JSON.stringify(JSON.parse(text), null, 2);
+                } catch {
+                    // Обычный текст
+                }
+
+                const middleware = response.headers.get("X-API");
+
+                if (middleware) {
+                    text = "Middleware: " + middleware +
+                           "\n\n" + text;
+                }
+
+                showResult(
+                    text,
+                    "HTTP " + response.status +
+                    (response.ok ? " — Успешно" : " — Ошибка")
+                );
+            }
+
+            async function sendGet(url) {
+                try {
+                    const response = await fetch(url);
+                    await displayResponse(response);
+                } catch (error) {
+                    showResult(error.message, "Ошибка подключения");
+                }
+            }
+
+            // Отправка формы
+            document.getElementById("nameForm")
+                .addEventListener("submit", async function(event) {
+                    event.preventDefault();
+
+                    try {
+                        const response = await fetch("/form", {
+                            method: "POST",
+                            body: new FormData(this)
+                        });
+
+                        await displayResponse(response);
+                    } catch (error) {
+                        showResult(error.message, "Ошибка формы");
+                    }
+                });
+
+            // Отправка JSON
+            async function sendJson() {
+                try {
+                    const response = await fetch("/api/student", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json"
+                        },
+                        body: JSON.stringify({
+                            name: "Алексей",
+                            age: 18
+                        })
+                    });
+
+                    await displayResponse(response);
+                } catch (error) {
+                    showResult(error.message, "Ошибка JSON");
+                }
+            }
+
+            // Загрузка файла
+            document.getElementById("uploadForm")
+                .addEventListener("submit", async function(event) {
+                    event.preventDefault();
+
+                    try {
+                        const response = await fetch("/upload", {
+                            method: "POST",
+                            body: new FormData(this)
+                        });
+
+                        await displayResponse(response);
+                    } catch (error) {
+                        showResult(error.message, "Ошибка загрузки");
+                    }
+                });
+
+            // Скачивание файла
+            async function downloadFile() {
+                try {
+                    const response = await fetch("/download");
+
+                    if (!response.ok) {
+                        await displayResponse(response);
+                        return;
+                    }
+
+                    const blob = await response.blob();
+                    const url = URL.createObjectURL(blob);
+
+                    const a = document.createElement("a");
+                    a.href = url;
+                    a.download = "example.txt";
+
+                    document.body.appendChild(a);
+                    a.click();
+                    a.remove();
+
+                    URL.revokeObjectURL(url);
+
+                    showResult(
+                        "Файл example.txt отправлен на скачивание.",
+                        "HTTP 200 — Успешно"
+                    );
+                } catch (error) {
+                    showResult(error.message, "Ошибка скачивания");
+                }
+            }
+
+            // Проверка переадресации
+            async function testRedirect(path, code) {
+                try {
+                    // Дополнительный параметр исключает старый кеш 301
+                    const url = path + "?check=" + Date.now();
+
+                    const response = await fetch(url, {
+                        cache: "no-store"
+                    });
+
+                    const redirected = response.redirected;
+
+                    showResult(
+                        "Тип: Redirect " + code +
+                        "\nИсходный путь: " + path +
+                        "\nКонечный URL: " + response.url +
+                        "\nПереадресация: " +
+                        (redirected ? "Выполнена" : "Не обнаружена") +
+                        "\n\nТочный статус первоначального ответа " +
+                        "можно посмотреть в DevTools → Network.",
+                        redirected
+                            ? "Переадресация выполнена"
+                            : "Переадресация не обнаружена"
+                    );
+                } catch (error) {
+                    showResult(error.message, "Ошибка переадресации");
+                }
+            }
+    </script>
+
+</body>
+</html>
